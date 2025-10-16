@@ -3,7 +3,7 @@
 
 # Go binary name
 BINARY_NAME=gopenbridge
-BINARY_PATH=cmd/openbridge
+BINARY_PATH=cmd/gopenbridge
 
 # Build flags
 GO_BUILD_FLAGS=-ldflags="-s -w"
