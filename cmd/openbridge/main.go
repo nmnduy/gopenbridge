@@ -4,8 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"GopenBridge/config"
-	"GopenBridge/server"
+	"gopenbridge/config"
+	"gopenbridge/server"
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 	fmt.Println()
 
 	// Start server
-	fmt.Printf("🌉 GopenBridge proxy starting on %s:%d\n", *host, *port)
+	fmt.Printf("🌉 gopenbridge proxy starting on %s:%d\n", *host, *port)
 	fmt.Printf("📋 Config: ANTHROPIC_BASE_URL=http://%s:%d/\n", *host, *port)
 	// Update config host and port
 	cfg.Host = *host

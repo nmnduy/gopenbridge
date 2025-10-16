@@ -1,4 +1,4 @@
-module gopenBridge
+module gopenbridge
 
 go 1.24
 
