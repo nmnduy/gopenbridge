@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"gopenBridge/config"
-	"gopenBridge/proxy"
+	"gopenbridge/config"
+	"gopenbridge/proxy"
 	"strconv"
 )
 
