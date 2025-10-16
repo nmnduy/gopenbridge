@@ -1,5 +1,7 @@
 tags
 *.swp
 
-openbridge.yaml
+gopenbridge.yaml
 gopenbridge
+
+CLAUDE.md
