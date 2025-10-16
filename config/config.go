@@ -98,12 +98,12 @@ func LoadConfig() (*Config, error) {
 func findConfigFile() string {
 	home, _ := os.UserHomeDir()
 	candidates := []string{
-		"openbridge.yaml",
-		"openbridge.yml",
-		filepath.Join(home, ".openbridge.yaml"),
-		filepath.Join(home, ".openbridge.yml"),
-		filepath.Join(home, ".config", "openbridge", "config.yaml"),
-		filepath.Join(home, ".config", "openbridge", "config.yml"),
+		"gopenBridge.yaml",
+		"gopenBridge.yml",
+		filepath.Join(home, ".gopenBridge.yaml"),
+		filepath.Join(home, ".gopenBridge.yml"),
+		filepath.Join(home, ".config", "gopenBridge", "config.yaml"),
+		filepath.Join(home, ".config", "gopenBridge", "config.yml"),
 	}
 	for _, p := range candidates {
 		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
@@ -150,12 +150,12 @@ func IsUsingDefaults(cfg *Config) bool {
 func PrintConfigInfo(cfg *Config) {
 	if IsUsingDefaults(cfg) {
 		fmt.Println("📝 You're using the default model configuration.")
-		fmt.Println("💡 You can customize by creating openbridge.yaml in:")
-		fmt.Println("   - Current directory: ./openbridge.yaml")
-		fmt.Println("   - Home directory: ~/.openbridge.yaml")
-		fmt.Println("   - Config directory: ~/.config/openbridge/config.yaml")
+		fmt.Println("💡 You can customize by creating gopenBridge.yaml in:")
+		fmt.Println("   - Current directory: ./gopenBridge.yaml")
+		fmt.Println("   - Home directory: ~/.gopenBridge.yaml")
+		fmt.Println("   - Config directory: ~/.config/gopenBridge/config.yaml")
 		fmt.Println()
-		fmt.Println("Example openbridge.yaml:")
+		fmt.Println("Example gopenBridge.yaml:")
 		fmt.Println("---")
 		fmt.Println("api_key: your-api-key-here")
 		fmt.Println("base_url: https://api.openai.com/v1")

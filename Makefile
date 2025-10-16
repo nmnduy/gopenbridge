@@ -1,8 +1,8 @@
 # Go Bridge Makefile
-# Build and development automation for OpenBridge Go implementation
+# Build and development automation for gopenBridge Go implementation
 
 # Go binary name
-BINARY_NAME=openbridge
+BINARY_NAME=gopenBridge
 BINARY_PATH=cmd/openbridge
 
 # Build flags
@@ -113,7 +113,7 @@ run-port:
 # Show help
 .PHONY: help
 help:
-	@echo "OpenBridge Go Makefile"
+	@echo "GOpenBridge Go Makefile"
 	@echo "====================="
 	@echo ""
 	@echo "Usage: make [target]"

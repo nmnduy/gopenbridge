@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"openbridge/config"
-	"openbridge/proxy"
-	"openbridge/templates"
+	"gopenBridge/config"
+	"gopenBridge/proxy"
 	"strconv"
 )
 
@@ -14,20 +13,38 @@ import (
 // StartServer starts HTTP server using configuration.
 func StartServer(cfg *config.Config) error {
 	addr := cfg.Host + ":" + strconv.Itoa(cfg.Port)
-	// Load HTML templates
-	if err := templates.LoadTemplates("templates/*.tmpl"); err != nil {
-		log.Printf("Failed to load templates: %v", err)
-		return err
-	}
+
 	mux := http.NewServeMux()
 
 	// Root endpoint serves rendered homepage template
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		data := templates.HomepageData{Host: cfg.Host, Port: cfg.Port, Model: cfg.Model}
-		if err := templates.RenderHomepage(w, data); err != nil {
-			http.Error(w, "Template error", http.StatusInternalServerError)
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
 		}
+
+		html := `
+<!DOCTYPE html>
+<html>
+<head><title>gopenBridge</title><style>
+body { font-family: Arial; max-width: 800px; margin: 40px auto; padding: 20px; }
+.status { background: #e3f2fd; padding: 20px; border-radius: 8px; }
+</style></head>
+<body>
+<h1>🌉 gopenBridge</h1>
+<div class="status">
+    <h2>Status: Running</h2>
+    <p>Proxy listening on ` + cfg.Host + `:` + strconv.Itoa(cfg.Port) + `</p>
+    <p>Model: ` + cfg.Model + `</p>
+</div>
+</body>
+</html>`
+		w.Write([]byte(html))
 	})
 
 	// Health endpoint

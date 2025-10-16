@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"openbridge/config"
+	"gopenBridge/config"
 )
 
 // ContentBlock represents a text block.

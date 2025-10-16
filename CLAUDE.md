@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 go build ./cmd/openbridge
 
 # Run the proxy server
-./openbridge --host 0.0.0.0 --port 8323
+./gopenBridge --host 0.0.0.0 --port 8323
 
 # Run Go tests (when tests are added)
 go test ./...
@@ -20,7 +20,7 @@ go vet ./...
 
 ## Architecture Overview
 
-OpenBridge is a dual-implementation API bridge (Python + Go) that translates Anthropic-style API calls to OpenAI-compatible endpoints. This allows Claude Code to work with any OpenAI-compatible LLM.
+gopenBridge is a dual-implementation API bridge (Python + Go) that translates Anthropic-style API calls to OpenAI-compatible endpoints. This allows Claude Code to work with any OpenAI-compatible LLM.
 
 ### Key Components
 
@@ -31,7 +31,7 @@ OpenBridge is a dual-implementation API bridge (Python + Go) that translates Ant
 
 ### Configuration Priority
 1. Environment variables (highest priority)
-2. YAML config file (`openbridge.yaml` or `openbridge.yml`)
+2. YAML config file (`gopenBridge.yaml` or `gopenBridge.yml`)
 3. Defaults and Hugging Face token detection
 
 ### HTTP Endpoints
