@@ -31,12 +31,12 @@ func StartServer(cfg *config.Config) error {
 		html := `
 <!DOCTYPE html>
 <html>
-<head><title>gopenBridge</title><style>
+<head><title>gopenbridge</title><style>
 body { font-family: Arial; max-width: 800px; margin: 40px auto; padding: 20px; }
 .status { background: #e3f2fd; padding: 20px; border-radius: 8px; }
 </style></head>
 <body>
-<h1>🌉 gopenBridge</h1>
+<h1>🌉 gopenbridge</h1>
 <div class="status">
     <h2>Status: Running</h2>
     <p>Proxy listening on ` + cfg.Host + `:` + strconv.Itoa(cfg.Port) + `</p>

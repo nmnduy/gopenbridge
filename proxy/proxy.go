@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"gopenBridge/config"
+	"gopenbridge/config"
 )
 
 // NewReverseProxy creates a reverse proxy pointing at cfg.BaseURL.

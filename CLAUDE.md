@@ -20,7 +20,7 @@ go vet ./...
 
 ## Architecture Overview
 
-gopenBridge is a dual-implementation API bridge (Python + Go) that translates Anthropic-style API calls to OpenAI-compatible endpoints. This allows Claude Code to work with any OpenAI-compatible LLM.
+gopenbridge is a go implementation that translates Anthropic-style API calls to OpenAI-compatible endpoints. This allows Claude Code to work with any OpenAI-compatible LLM.
 
 ### Key Components
 

@@ -1,8 +1,8 @@
 # Go Bridge Makefile
-# Build and development automation for gopenBridge Go implementation
+# Build and development automation for gopenbridge Go implementation
 
 # Go binary name
-BINARY_NAME=gopenBridge
+BINARY_NAME=gopenbridge
 BINARY_PATH=cmd/openbridge
 
 # Build flags
