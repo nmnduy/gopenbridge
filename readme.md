@@ -35,11 +35,17 @@ Run the binary:
 ./gopenbridge
 ```
 
-Use with the `claude` command:
+Install `claude-code`
+
+```sh
+npm install -g @anthropic-ai/claude-code@2.0.19
+```
+
+Not sure if other versions will work.
+
+Use this `claude` command:
 ```
 ANTHROPIC_DEFAULT_HAIKU_MODEL=openai/gpt-oss-120b \
     ANTHROPIC_DEFAULT_SONNET_MODEL=moonshotai/kimi-k2-instruct-0905 \
     ANTHROPIC_BASE_URL=http://0.0.0.0:8323 claude
 ```
-
-I used this with claude code version `v2.0.19`.
