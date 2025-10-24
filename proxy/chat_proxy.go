@@ -112,10 +112,16 @@ func (p *ChatProxy) processRequest(req *MessagesRequest) (map[string]interface{}
 		"temperature": req.Temperature,
 		"max_tokens":  maxT,
 	}
-	if len(funcs) > 0 {
-		payload["functions"] = funcs
-		payload["function_call"] = "auto"
-	}
+		if len(funcs) > 0 {
+			// use OpenRouter tools & tool_choice instead of deprecated functions
+			payload["tools"] = funcs
+			// respect explicit tool_choice or default to auto
+			if req.ToolChoice != nil {
+				payload["tool_choice"] = req.ToolChoice
+			} else {
+				payload["tool_choice"] = "auto"
+			}
+		}
 	// Marshal and send
 	body, _ := json.Marshal(payload)
 	endpoint := strings.TrimRight(p.cfg.BaseURL, "/") + "/chat/completions"
@@ -155,27 +161,34 @@ func (p *ChatProxy) processRequest(req *MessagesRequest) (map[string]interface{}
 	// Build content blocks
 	var content []interface{}
 	stopReason := "end_turn"
-	if fc, ok := message["function_call"].(map[string]interface{}); ok {
-		// tool use
-		args := map[string]interface{}{}
-		if s, ok := fc["arguments"].(string); ok {
-			json.Unmarshal([]byte(s), &args)
-		}
-		content = append(content, map[string]interface{}{ // tool_use block
-			"type":  "tool_use",
-			"id":    uuid.New().String()[:12],
-			"name":  fc["name"],
-			"input": args,
-		})
-		stopReason = "tool_use"
-	} else {
-		// text
-		txt, _ := message["content"].(string)
-		content = append(content, map[string]interface{}{ // text block
-			"type": "text",
-			"text": txt,
-		})
-	}
+            // detect tool invocation (new 'tool' or legacy 'function_call')
+            var fc map[string]interface{}
+            if raw, ok := message["tool"].(map[string]interface{}); ok {
+                fc = raw
+            } else if raw, ok := message["function_call"].(map[string]interface{}); ok {
+                fc = raw
+            }
+            if fc != nil {
+                // tool use
+                args := map[string]interface{}{}
+                if s, ok := fc["arguments"].(string); ok {
+                    json.Unmarshal([]byte(s), &args)
+                }
+                content = append(content, map[string]interface{}{ // tool_use block
+                    "type":  "tool_use",
+                    "id":    uuid.New().String()[:12],
+                    "name":  fc["name"],
+                    "input": args,
+                })
+                stopReason = "tool_use"
+            } else {
+                // text
+                txt, _ := message["content"].(string)
+                content = append(content, map[string]interface{}{ // text block
+                    "type": "text",
+                    "text": txt,
+                })
+            }
 	// Assemble response
 	usage := map[string]interface{}{
 		"input_tokens":  ocRes["usage"].(map[string]interface{})["prompt_tokens"],
