@@ -1,4 +1,10 @@
 tags
 *.swp
 
+gopenbridge
+gopenbridge.db
+gopenbridge.db-shm
+gopenbridge.db-wal
+gopenbridge.yaml
+
 CLAUDE.md

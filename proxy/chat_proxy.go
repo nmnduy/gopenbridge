@@ -1,16 +1,19 @@
 package proxy
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"strings"
+   "bytes"
+   "database/sql"
+   "encoding/json"
+   "fmt"
+   "io"
+   "log"
+   "net/http"
+   "strings"
+   "time"
 
-	"github.com/google/uuid"
-	"gopenbridge/config"
+   "github.com/google/uuid"
+   _ "github.com/mattn/go-sqlite3"
+   "gopenbridge/config"
 )
 
 // ContentBlock represents a text block.
@@ -60,12 +63,43 @@ type MessagesRequest struct {
 
 // ChatProxy handles Anthropic-style payloads and forwards to OpenAI.
 type ChatProxy struct {
-	cfg *config.Config
+   cfg *config.Config
+   db  *sql.DB
 }
 
 // NewChatProxy constructs a ChatProxy.
+// NewChatProxy constructs a ChatProxy with persistence initialized.
 func NewChatProxy(cfg *config.Config) *ChatProxy {
-	return &ChatProxy{cfg: cfg}
+   // Open SQLite database
+   db, err := sql.Open("sqlite3", cfg.DBPath)
+   if err != nil {
+       log.Fatalf("Failed to open DB: %v", err)
+   }
+   // Enable SQLite WAL journaling and set synchronous to NORMAL for performance
+   if _, err := db.Exec("PRAGMA journal_mode=WAL;"); err != nil {
+       log.Printf("Failed to set journal_mode WAL: %v", err)
+   }
+   if _, err := db.Exec("PRAGMA synchronous=NORMAL;"); err != nil {
+       log.Printf("Failed to set synchronous NORMAL: %v", err)
+   }
+   // Create log table if not exists
+   createTable := `CREATE TABLE IF NOT EXISTS api_logs (
+       id TEXT PRIMARY KEY,
+       timestamp DATETIME,
+       provider TEXT,
+       endpoint TEXT,
+       model TEXT,
+       request TEXT,
+       response TEXT,
+       status_code INTEGER,
+       error_message TEXT,
+       prompt_tokens INTEGER,
+       completion_tokens INTEGER
+   );`
+   if _, err := db.Exec(createTable); err != nil {
+       log.Fatalf("Failed to create table: %v", err)
+   }
+   return &ChatProxy{cfg: cfg, db: db}
 }
 
 // ServeHTTP satisfies http.Handler.
@@ -94,8 +128,10 @@ func maskAPIKey(key string) string {
 
 // processRequest converts and forwards the request.
 func (p *ChatProxy) processRequest(req *MessagesRequest) (map[string]interface{}, error) {
-	// Convert messages and tools
-	msgs := convertMessages(req.Messages)
+   // Generate log ID
+   logID := uuid.New().String()[:12]
+   // Convert messages and tools
+   msgs := convertMessages(req.Messages)
 	var funcs []map[string]interface{}
 	if len(req.Tools) > 0 {
 		funcs = convertTools(req.Tools)
@@ -113,18 +149,22 @@ func (p *ChatProxy) processRequest(req *MessagesRequest) (map[string]interface{}
 		"max_tokens":  maxT,
 	}
 		if len(funcs) > 0 {
-			// use OpenRouter tools & tool_choice instead of deprecated functions
-			payload["tools"] = funcs
-			// respect explicit tool_choice or default to auto
+			// use OpenAI function-calling fields for tools
+			payload["functions"] = funcs
+			// respect explicit tool_choice mapped to function_call or default to auto
 			if req.ToolChoice != nil {
-				payload["tool_choice"] = req.ToolChoice
+				payload["function_call"] = req.ToolChoice
 			} else {
-				payload["tool_choice"] = "auto"
+				payload["function_call"] = "auto"
 			}
 		}
 	// Marshal and send
 	body, _ := json.Marshal(payload)
 	endpoint := strings.TrimRight(p.cfg.BaseURL, "/") + "/chat/completions"
+	// Debug: log request payload
+	if p.cfg.Debug {
+		log.Printf("DEBUG: Request to %s: payload %s", endpoint, string(body))
+	}
 	httpReq, _ := http.NewRequest("POST", endpoint, bytes.NewReader(body))
 	httpReq.Header.Set("Authorization", "Bearer "+p.cfg.APIKey)
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -135,6 +175,10 @@ func (p *ChatProxy) processRequest(req *MessagesRequest) (map[string]interface{}
 	}
 	defer httpRes.Body.Close()
 	data, _ := io.ReadAll(httpRes.Body)
+	// Debug: log response status and body
+	if p.cfg.Debug {
+		log.Printf("DEBUG: Response status %s body: %s", httpRes.Status, string(data))
+	}
 	var ocRes map[string]interface{}
 	if err := json.Unmarshal(data, &ocRes); err != nil {
 		return nil, err
@@ -194,8 +238,28 @@ func (p *ChatProxy) processRequest(req *MessagesRequest) (map[string]interface{}
 		"input_tokens":  ocRes["usage"].(map[string]interface{})["prompt_tokens"],
 		"output_tokens": ocRes["usage"].(map[string]interface{})["completion_tokens"],
 	}
+	// Persist log entry
+	ptF, _ := usage["input_tokens"].(float64)
+	ctF, _ := usage["output_tokens"].(float64)
+	_, errExec := p.db.Exec(
+		`INSERT INTO api_logs(id, timestamp, provider, endpoint, model, request, response, status_code, error_message, prompt_tokens, completion_tokens) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		logID,
+		time.Now().UTC(),
+		p.cfg.BaseURL,
+		endpoint,
+		req.Model,
+		string(body),
+		string(data),
+		httpRes.StatusCode,
+		"", // no error message
+		int(ptF),
+		int(ctF),
+	)
+	if errExec != nil {
+		log.Printf("Failed to persist API log: %v", errExec)
+	}
 	return map[string]interface{}{
-		"id":            "msg_" + uuid.New().String()[:12],
+		"id":            "msg_" + logID,
 		"model":         req.Model,
 		"role":          "assistant",
 		"type":          "message",

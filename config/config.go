@@ -17,6 +17,8 @@ type Config struct {
 	MaxTokens int    // Maximum output tokens
 	Host      string // Server host
 	Port      int    // Server port
+   Debug     bool   // Enable debug logging
+   DBPath    string // Path to SQLite database file
 }
 
 // LoadConfig loads configuration from file, environment, or defaults.
@@ -53,6 +55,18 @@ func LoadConfig() (*Config, error) {
 			cfg.Port = iv
 		}
 	}
+	// Override debug setting via environment variable
+	if v := os.Getenv("DEBUG"); v != "" {
+		if b, err := strconv.ParseBool(v); err == nil {
+			cfg.Debug = b
+		}
+	}
+	// Database path from environment or default
+	if v := os.Getenv("DB_PATH"); v != "" {
+		cfg.DBPath = v
+	} else {
+		cfg.DBPath = "gopenbridge.db"
+	}
 	// Load from config file if available
 	if path := findConfigFile(); path != "" {
 		if fileCfg, err := parseYAMLFile(path); err != nil {
@@ -76,6 +90,12 @@ func LoadConfig() (*Config, error) {
 					if iv, err := strconv.Atoi(v); err == nil {
 						cfg.Port = iv
 					}
+				case "debug":
+					if b, err := strconv.ParseBool(v); err == nil {
+						cfg.Debug = b
+					}
+				case "db_path":
+					cfg.DBPath = v
 				}
 			}
 		}
