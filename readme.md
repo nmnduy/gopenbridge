@@ -20,6 +20,7 @@ api_key: gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 base_url: https://api.groq.com/openai/v1
 model: moonshotai/kimi-k2-instruct-0905
 max_tokens: 14000
+debug: true    # optional: enable verbose debug logging
 ```
 
 Put that file in one of these locations:
@@ -34,6 +35,7 @@ Run the binary:
 ```
 ./gopenbridge
 ```
+To enable debug logging, set environment variable `DEBUG=true` or add `debug: true` in your config file.
 
 Install `claude-code`
 
