@@ -17,8 +17,8 @@ type Config struct {
 	MaxTokens int    // Maximum output tokens
 	Host      string // Server host
 	Port      int    // Server port
-   Debug     bool   // Enable debug logging
-   DBPath    string // Path to SQLite database file
+	Debug     bool   // Enable debug logging
+	DBPath    string // Path to SQLite database file
 }
 
 // LoadConfig loads configuration from file, environment, or defaults.

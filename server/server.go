@@ -2,10 +2,10 @@ package server
 
 import (
 	"encoding/json"
-	"log"
-	"net/http"
 	"gopenbridge/config"
 	"gopenbridge/proxy"
+	"log"
+	"net/http"
 	"strconv"
 )
 

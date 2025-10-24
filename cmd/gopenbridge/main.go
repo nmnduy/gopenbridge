@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"gopenbridge/config"
 	"gopenbridge/server"
+	"log"
 )
 
 func main() {
@@ -22,11 +22,11 @@ func main() {
 	flag.Parse()
 
 	// Print configuration info
-   config.PrintConfigInfo(cfg)
-   fmt.Println()
-   if cfg.Debug {
-       fmt.Println("🔍 Debug logging enabled")
-   }
+	config.PrintConfigInfo(cfg)
+	fmt.Println()
+	if cfg.Debug {
+		fmt.Println("🔍 Debug logging enabled")
+	}
 
 	// Start server
 	fmt.Printf("🌉 gopenbridge proxy starting on %s:%d\n", *host, *port)
