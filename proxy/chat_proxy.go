@@ -126,15 +126,45 @@ func maskAPIKey(key string) string {
 	return key[:4] + "..." + key[len(key)-4:]
 }
 
+// detectProvider determines the provider type from the base URL.
+func detectProvider(baseURL string) string {
+	baseURL = strings.ToLower(baseURL)
+
+	// Check for specific provider patterns
+	if strings.Contains(baseURL, "groq.com") {
+		return "groq"
+	}
+	if strings.Contains(baseURL, "openrouter.ai") {
+		return "openrouter"
+	}
+	if strings.Contains(baseURL, "api.openai.com") {
+		return "openai"
+	}
+	if strings.Contains(baseURL, "fireworks.ai") {
+		return "fireworks"
+	}
+	if strings.Contains(baseURL, "huggingface.co") {
+		return "huggingface"
+	}
+	if strings.Contains(baseURL, "anthropic.com") {
+		return "anthropic"
+	}
+
+	// Default to standard OpenAI-compatible format (tools)
+	return "openai-compatible"
+}
+
 // processRequest converts and forwards the request.
 func (p *ChatProxy) processRequest(req *MessagesRequest) (map[string]interface{}, error) {
    // Generate log ID
    logID := uuid.New().String()[:12]
+   // Detect provider type
+   provider := detectProvider(p.cfg.BaseURL)
    // Convert messages and tools
    msgs := convertMessages(req.Messages)
-	var funcs []map[string]interface{}
+	var toolsOrFuncs []map[string]interface{}
 	if len(req.Tools) > 0 {
-		funcs = convertTools(req.Tools)
+		toolsOrFuncs = convertToolsForProvider(req.Tools, provider)
 	}
 	// Determine max tokens
 	maxT := p.cfg.MaxTokens
@@ -148,16 +178,33 @@ func (p *ChatProxy) processRequest(req *MessagesRequest) (map[string]interface{}
 		"temperature": req.Temperature,
 		"max_tokens":  maxT,
 	}
-		if len(funcs) > 0 {
-			// use OpenAI function-calling fields for tools
-			payload["functions"] = funcs
-			// respect explicit tool_choice mapped to function_call or default to auto
+	// Add tools/functions based on provider
+	if len(toolsOrFuncs) > 0 {
+		switch provider {
+		case "groq":
+			// Groq uses legacy functions format
+			payload["functions"] = toolsOrFuncs
 			if req.ToolChoice != nil {
 				payload["function_call"] = req.ToolChoice
 			} else {
 				payload["function_call"] = "auto"
 			}
+			if p.cfg.Debug {
+				log.Printf("DEBUG: Using Groq functions format")
+			}
+		default:
+			// OpenRouter, OpenAI, Fireworks, and most others use tools format
+			payload["tools"] = toolsOrFuncs
+			if req.ToolChoice != nil {
+				payload["tool_choice"] = req.ToolChoice
+			} else {
+				payload["tool_choice"] = "auto"
+			}
+			if p.cfg.Debug {
+				log.Printf("DEBUG: Using standard tools format for provider: %s", provider)
+			}
 		}
+	}
 	// Marshal and send
 	body, _ := json.Marshal(payload)
 	endpoint := strings.TrimRight(p.cfg.BaseURL, "/") + "/chat/completions"
@@ -205,34 +252,72 @@ func (p *ChatProxy) processRequest(req *MessagesRequest) (map[string]interface{}
 	// Build content blocks
 	var content []interface{}
 	stopReason := "end_turn"
-            // detect tool invocation (new 'tool' or legacy 'function_call')
-            var fc map[string]interface{}
-            if raw, ok := message["tool"].(map[string]interface{}); ok {
-                fc = raw
-            } else if raw, ok := message["function_call"].(map[string]interface{}); ok {
-                fc = raw
-            }
-            if fc != nil {
-                // tool use
-                args := map[string]interface{}{}
-                if s, ok := fc["arguments"].(string); ok {
-                    json.Unmarshal([]byte(s), &args)
-                }
-                content = append(content, map[string]interface{}{ // tool_use block
-                    "type":  "tool_use",
-                    "id":    uuid.New().String()[:12],
-                    "name":  fc["name"],
-                    "input": args,
-                })
-                stopReason = "tool_use"
-            } else {
-                // text
-                txt, _ := message["content"].(string)
-                content = append(content, map[string]interface{}{ // text block
-                    "type": "text",
-                    "text": txt,
-                })
-            }
+
+	// Detect tool invocation (try multiple formats)
+	// 1. Modern tools format: tool_calls array (OpenRouter, OpenAI with tools)
+	if toolCalls, ok := message["tool_calls"].([]interface{}); ok && len(toolCalls) > 0 {
+		if p.cfg.Debug {
+			log.Printf("DEBUG: Detected tool_calls format (OpenRouter/OpenAI tools)")
+		}
+		for _, tc := range toolCalls {
+			tcMap, _ := tc.(map[string]interface{})
+			funcData, _ := tcMap["function"].(map[string]interface{})
+
+			args := map[string]interface{}{}
+			if s, ok := funcData["arguments"].(string); ok {
+				json.Unmarshal([]byte(s), &args)
+			}
+
+			toolID, _ := tcMap["id"].(string)
+			if toolID == "" {
+				toolID = uuid.New().String()[:12]
+			}
+
+			content = append(content, map[string]interface{}{
+				"type":  "tool_use",
+				"id":    toolID,
+				"name":  funcData["name"],
+				"input": args,
+			})
+		}
+		stopReason = "tool_use"
+	} else {
+		// 2. Legacy formats: function_call or tool (Groq, older OpenAI)
+		var fc map[string]interface{}
+		if raw, ok := message["function_call"].(map[string]interface{}); ok {
+			if p.cfg.Debug {
+				log.Printf("DEBUG: Detected function_call format (Groq/legacy)")
+			}
+			fc = raw
+		} else if raw, ok := message["tool"].(map[string]interface{}); ok {
+			if p.cfg.Debug {
+				log.Printf("DEBUG: Detected tool format")
+			}
+			fc = raw
+		}
+
+		if fc != nil {
+			// Single function/tool call
+			args := map[string]interface{}{}
+			if s, ok := fc["arguments"].(string); ok {
+				json.Unmarshal([]byte(s), &args)
+			}
+			content = append(content, map[string]interface{}{
+				"type":  "tool_use",
+				"id":    uuid.New().String()[:12],
+				"name":  fc["name"],
+				"input": args,
+			})
+			stopReason = "tool_use"
+		} else {
+			// No tool calls - just text
+			txt, _ := message["content"].(string)
+			content = append(content, map[string]interface{}{
+				"type": "text",
+				"text": txt,
+			})
+		}
+	}
 	// Assemble response
 	usage := map[string]interface{}{
 		"input_tokens":  ocRes["usage"].(map[string]interface{})["prompt_tokens"],
@@ -327,15 +412,29 @@ func convertMessages(msgs []Message) []map[string]interface{} {
 	return out
 }
 
-// convertTools maps Tool definitions to OpenAI functions.
-func convertTools(tools []Tool) []map[string]interface{} {
+// convertToolsForProvider maps Tool definitions to provider-specific format.
+func convertToolsForProvider(tools []Tool, provider string) []map[string]interface{} {
 	var out []map[string]interface{}
 	for _, t := range tools {
-		out = append(out, map[string]interface{}{
-			"name":        t.Name,
-			"description": t.Description,
-			"parameters":  t.InputSchema,
-		})
+		switch provider {
+		case "groq":
+			// Groq uses legacy functions format: name, description, parameters
+			out = append(out, map[string]interface{}{
+				"name":        t.Name,
+				"description": t.Description,
+				"parameters":  t.InputSchema,
+			})
+		default:
+			// OpenRouter, OpenAI, Fireworks use tools format with type and function wrapper
+			out = append(out, map[string]interface{}{
+				"type": "function",
+				"function": map[string]interface{}{
+					"name":        t.Name,
+					"description": t.Description,
+					"parameters":  t.InputSchema,
+				},
+			})
+		}
 	}
 	return out
 }
