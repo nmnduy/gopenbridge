@@ -29,6 +29,22 @@ Put that file in one of these locations:
 - ~/.gopenbridge.yaml
 - ~/.config/gopenbridge/config.yaml
 
+### Using a Custom Config File Path
+
+**Note**: gopenbridge does not currently support specifying a custom config file path via command-line arguments. The application only searches in the standard locations listed above.
+
+If you need to use a config file from a non-standard path, use environment variables instead:
+
+```bash
+export OPENAI_API_KEY="gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+export OPENAI_BASE_URL="https://api.groq.com/openai/v1"
+export OPENAI_MODEL="moonshotai/kimi-k2-instruct-0905"
+export MAX_OUTPUT_TOKENS="14000"
+export DEBUG="true"
+
+./gopenbridge --host 0.0.0.0 --port 8323
+```
+
 
 Run the binary:
 
